@@ -4,6 +4,7 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
 
 
 class RegisterView(APIView):
@@ -56,15 +57,10 @@ class RegisterView(APIView):
             username=username, email=email, password=password)
         user.save()
 
-        # Generate token for the user
-        token, _ = Token.objects.get_or_create(user=user)
-
         return Response({
             "status": status.HTTP_200_OK,
             "message": "User registered successfully",
-            "contents": {
-                "token": token.key
-            }
+            "contents": None
         }, status=status.HTTP_200_OK)
 
 
@@ -98,7 +94,8 @@ class LoginView(APIView):
                 "status": status.HTTP_200_OK,
                 "message": "Login successful",
                 "contents": {
-                    "token": token.key
+                    "token": token.key,
+                    "is_superuser": user.is_superuser
                 }
             }, status=status.HTTP_200_OK)
         else:
@@ -107,3 +104,24 @@ class LoginView(APIView):
                 "message": "Invalid credentials",
                 "contents": None
             }, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user  # Mengambil pengguna yang sedang login
+        profile_data = {
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "is_superuser": user.is_superuser
+
+        }
+
+        return Response({
+            "status": status.HTTP_200_OK,
+            "message": "Profile retrieved successfully",
+            "contents": profile_data,
+        }, status=status.HTTP_200_OK)
