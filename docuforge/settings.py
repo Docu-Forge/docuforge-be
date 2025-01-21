@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'custom_auth',
     'dashboard',
     'generate',
-    'openai'
+    'openai',
     'rest_framework',
     'rest_framework.authtoken',
 ]
@@ -177,4 +177,16 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend'
     ],
     'MAX_LIMIT': 100,  # Maximum allowed limit per request
+}
+
+
+# Docusign
+
+DOCUSIGN = {
+    'BASE_URL': 'https://demo.docusign.net/restapi',  # URL Sandbox DocuSign
+    'CLIENT_ID': os.environ.get("DOCUSIGN_CLIENT_ID"),
+    'CLIENT_SECRET': os.environ.get("DOCUSIGN_CLIENT_SECRET"),
+    'REDIRECT_URI': os.environ.get("DOCUSIGN_REDIRECT_URI"),  # Untuk OAuth
+    'AUTH_SERVER': os.environ.get('DOCUSIGN_AUTH_SERVER'),
+    'TARGET_ACCOUNT_ID': os.environ.get("DOCUSIGN_TARGET_ACCOUNT_ID"),
 }
