@@ -51,9 +51,9 @@ INSTALLED_APPS = [
     'custom_auth',
     'dashboard',
     'generate',
-    'openai'
     'rest_framework',
     'rest_framework.authtoken',
+    'docusign_esign'
 ]
 
 MIDDLEWARE = [
