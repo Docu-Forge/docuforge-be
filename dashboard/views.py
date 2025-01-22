@@ -114,6 +114,13 @@ DATA = [
 ]
 class DocumentRequestList(APIView):
     def get(self, request):
+        user = request.user
+        print(user)
+        if not user.is_superuser:
+            return Response({
+                "status": status.HTTP_401_UNAUTHORIZED,
+                "message": "Unauthorized access"
+            }, status=status.HTTP_401_UNAUTHORIZED)
         document_requests = DocumentRequest.objects.all()
         serializer = DocumentRequestSerializer(document_requests, many=True)
         return Response({
