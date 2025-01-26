@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 class RecipientSerializer(serializers.Serializer):
     name = serializers.CharField(required=True)
-    role = serializers.CharField(required=True)
+    email = serializers.EmailField(required=True)
 
 class LegalDocumentSerializer(serializers.Serializer):
     title = serializers.CharField(required=True)
