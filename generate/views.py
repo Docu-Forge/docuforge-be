@@ -10,6 +10,7 @@ from rest_framework import status
 from docusign_esign import ApiClient, EnvelopesApi, EnvelopeDefinition, Document, Signer, CarbonCopy, SignHere, Tabs, Recipients
 from .serializers import LegalDocumentSerializer, GenerateTextSerializer
 from .models import GeneratedLegalDocument
+from django.conf import settings
 
 env = os.environ
 
@@ -133,30 +134,33 @@ Agreement Terms:
 
     def retrieve_access_token(self, token):
         api_client = ApiClient()
-        api_client.host = env.get('DOCUSIGN_AUTH_SERVER')
+        api_client.host = settings.DOCUSIGN['AUTH_SERVER']
         api_client.set_default_header("Authorization", f"Bearer {token}")
         return api_client
 
     def create_and_send_envelope(self, api_client, account_id, validated_content, recipients):
         envelope_definition = self.create_docusign_envelope(validated_content, recipients)
+        # print(envelope_definition)
         envelopes_api = EnvelopesApi(api_client)
+        # print(envelopes_api)
         result = envelopes_api.create_envelope(account_id=account_id, envelope_definition=envelope_definition)
+        # print(result)
         return result
 
-    def save_generated_document(self, user_id, serializer, validated_content):
-        GeneratedLegalDocument.objects.create(
-            user_id=user_id,
-            title=serializer.validated_data['title'],
-            date=serializer.validated_data['date'],
-            recipients=serializer.validated_data['recipients'],
-            description=serializer.validated_data['description'],
-            agreements=serializer.validated_data['agreements'],
-            rights=serializer.validated_data.get('rights', []),
-            resolution=serializer.validated_data.get('resolution', ''),
-            payment=serializer.validated_data.get('payment', ''),
-            closing=serializer.validated_data['closing'],
-            generated_content=validated_content
-        )
+    # def save_generated_document(self, user_id, serializer, validated_content):
+    #     GeneratedLegalDocument.objects.create(
+    #         user_id=user_id,
+    #         title=serializer.validated_data['title'],
+    #         date=serializer.validated_data['date'],
+    #         recipients=serializer.validated_data['recipients'],
+    #         description=serializer.validated_data['description'],
+    #         agreements=serializer.validated_data['agreements'],
+    #         rights=serializer.validated_data.get('rights', []),
+    #         resolution=serializer.validated_data.get('resolution', ''),
+    #         payment=serializer.validated_data.get('payment', ''),
+    #         closing=serializer.validated_data['closing'],
+    #         generated_content=validated_content
+    #     )
 
     def post(self, request):
         try:
@@ -165,12 +169,18 @@ Agreement Terms:
             if not auth_header:
                 return Response({'error': 'Authorization header is required'}, status=status.HTTP_401_UNAUTHORIZED)
             token = auth_header.split(" ")[1] if " " in auth_header else auth_header
+            
+            account_id = None
 
             # Retrieve user information using the token
             try:
                 user_info = self.fetch_user_info(token)
                 user_id = user_info['sub']
-                account_id = user_info['accounts'][0]['account_id']
+                accounts = user_info['accounts']
+                for acc in accounts:
+                    if acc['is_default']:
+                        account_id = acc['account_id']
+                        break
             except Exception as e:
                 logger.error(f"Error retrieving user information: {str(e)}")
                 return Response({'error': 'Failed to retrieve user information'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -189,23 +199,52 @@ Agreement Terms:
                     ],
                     stream=False
                 )
+        #         validated_content = """
+        # <!DOCTYPE html>
+        # <html>
+        #     <head>
+        #       <meta charset="UTF-8">
+        #     </head>
+        #     <body style="font-family:sans-serif;margin-left:2em;">
+        #     <h1 style="font-family: "Trebuchet MS", Helvetica, sans-serif;
+        #         color: darkblue;margin-bottom: 0;">World Wide Corp</h1>
+        #     <h2 style="font-family: "Trebuchet MS", Helvetica, sans-serif;
+        #       margin-top: 0px;margin-bottom: 3.5em;font-size: 1em;
+        #       color: darkblue;">Order Processing Division</h2>
+        #     <h4>Ordered by {args["signer_name"]}</h4>
+        #     <p style="margin-top:0em; margin-bottom:0em;">Email: {args["signer_email"]}</p>
+        #     <p style="margin-top:0em; margin-bottom:0em;">Copy to: {args["cc_name"]}, {args["cc_email"]}</p>
+        #     <p style="margin-top:3em;">
+        #         Candy bonbon pastry jujubes lollipop wafer biscuit biscuit. Topping brownie sesame snaps sweet roll pie. 
+        #         Croissant danish biscuit soufflé caramels jujubes jelly. Dragée danish caramels lemon drops dragée. 
+        #         Gummi bears cupcake biscuit tiramisu sugar plum pastry. Dragée gummies applicake pudding liquorice. 
+        #         Donut jujubes oat cake jelly-o. 
+        #         Dessert bear claw chocolate cake gummies lollipop sugar plum ice cream gummies cheesecake.
+        #     </p>
+        #     <!-- Note the anchor tag for the signature field is in white. -->
+        #     <h3 style="margin-top:3em;">Agreed: <span style="color:white;">**signature_1**/</span></h3>
+        #     </body>
+        # </html>
+        # """
                 
                 generated_content = response.choices[0].message.content
                 validated_content = generated_content.replace("```html", "").replace("```", "").strip()
 
                 # Create DocuSign API client
-                api_client = self.retrieve_access_token(token)
+                api_client = ApiClient()
+                api_client.host = settings.DOCUSIGN['BASE_URL']
+                api_client.set_default_header(header_name="Authorization", header_value=f"Bearer {token}")
 
                 # Create and send envelope
                 try:
-                    
                     result = self.create_and_send_envelope(api_client, account_id, validated_content, serializer.validated_data['recipients'])
+                    print(result)
                 except Exception as e:
-                    logger.error(f"Error creating envelope: {str(e)}")
+                    print(f"Error creating envelope: {str(e)}")
                     return Response({'error': 'Failed to create envelope'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
                 # Save the generated document to the database
-                self.save_generated_document(user_id, serializer, validated_content)
+                # self.save_generated_document(user_id, serializer, validated_content)
 
                 return Response({
                     'title': serializer.validated_data['title'],
