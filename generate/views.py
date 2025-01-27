@@ -50,7 +50,7 @@ Agreement Terms:
         
         prompt += f"\n\nClosing Date: {data['closing']}"
         
-        prompt += "\n\nPlease format this into a professional legal document with proper legal language and structure. The response should be strictly in HTML with inline CSS only. No need for responsiveness or interactivity."
+        prompt += "\n\nPlease format this into a professional legal document with proper legal language and structure. The response should be strictly in HTML with inline CSS only. No need for responsiveness or interactivity. The signing area should be for each recipient to sign their name, no more no less."
         return prompt
 
     def create_docusign_envelope(self, html_content, recipients):
@@ -144,7 +144,7 @@ Agreement Terms:
 
     def save_document(self, serializer, envelope_id):
         doc_number = self.generate_document_number(serializer.validated_data['document_type'])
-        DocumentRequest.objects.create(
+        document = DocumentRequest.objects.create(
             document_title=serializer.validated_data['title'],
             document_type=serializer.validated_data['document_type'],
             comments_notes=serializer.validated_data['description'],
@@ -152,6 +152,7 @@ Agreement Terms:
             document_number=doc_number,
             envelope_id=envelope_id
         )
+        document.save()
 
     def post(self, request):
         try:
@@ -199,12 +200,12 @@ Agreement Terms:
                 # Create and send envelope
                 try:
                     result = self.create_and_send_envelope(api_client, account_id, validated_content, serializer.validated_data['recipients'])
-                    # Save document to dashboard
+                    # Save document with the serializer instance, not just the data
                     self.save_document(serializer, result.envelope_id)
                 except Exception as e:
-                    print(f"Error creating envelope: {str(e)}")
-                    return Response({'error': 'Failed to create envelope'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+                    print(f"Error saving document: {str(e)}")
+                    return Response({'error': 'Failed to save document'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
                 return Response({
                     'title': serializer.validated_data['title'],
                     'generated_content': validated_content,
