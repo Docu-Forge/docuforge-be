@@ -12,5 +12,3 @@ tzdata==2024.1
 django-cors-headers
 openai
 docusign-esign
-docusign-esign
-openai
