@@ -35,6 +35,7 @@ class AddDocument(APIView):
         document_number = request.data.get("document_number")
         envelope_id = request.data.get("envelope_id")
         document = DocumentRequest.objects.create(
+            user=user,
             document_title=document_title,
             document_type=document_type,
             comments_notes=comments_notes,

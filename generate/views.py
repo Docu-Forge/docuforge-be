@@ -130,7 +130,7 @@ Agreement Terms:
         date_str = today.strftime('%Y%m%d')
         
         # Get latest document number for today
-        latest_doc = Document.objects.filter(
+        latest_doc = DocumentRequest.objects.filter(
             document_number__contains=f"DOC/{type_prefix}/{date_str}"
         ).order_by('-document_number').first()
         
