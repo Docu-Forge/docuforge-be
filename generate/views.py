@@ -142,9 +142,23 @@ Agreement Terms:
             
         return f"DOC/{type_prefix}/{date_str}/{new_num}"
 
-    def save_document(self, serializer, envelope_id):
+    def save_document(self, request, serializer, envelope_id):
         doc_number = self.generate_document_number(serializer.validated_data['document_type'])
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return Response({'error': 'Authorization header is required'}, status=status.HTTP_401_UNAUTHORIZED)
+        token = auth_header.split(" ")[1] if " " in auth_header else auth_header
+        
+        account_id = None
+        user_info = self.fetch_user_info(token)
+        accounts = user_info['accounts']
+        for acc in accounts:
+            if acc['is_default']:
+                account_id = acc['account_id']
+                break
+            
         document = DocumentRequest.objects.create(
+            account_id=account_id,
             document_title=serializer.validated_data['title'],
             document_type=serializer.validated_data['document_type'],
             comments_notes=serializer.validated_data['description'],
@@ -201,7 +215,7 @@ Agreement Terms:
                 try:
                     result = self.create_and_send_envelope(api_client, account_id, validated_content, serializer.validated_data['recipients'])
                     # Save document with the serializer instance, not just the data
-                    self.save_document(serializer, result.envelope_id)
+                    self.save_document(request ,serializer, result.envelope_id)
                 except Exception as e:
                     print(f"Error saving document: {str(e)}")
                     return Response({'error': 'Failed to save document'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

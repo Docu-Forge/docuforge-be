@@ -7,7 +7,7 @@ DOCUMENT_TYPE_CHOICES = [
 ]
 
 class DocumentRequest(models.Model):
-    user = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    account_id = models.CharField(max_length=100)
     document_title = models.CharField(max_length=100)
     document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
     created_date = models.DateTimeField(auto_now_add=True)
