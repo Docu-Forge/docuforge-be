@@ -122,23 +122,6 @@ Agreement Terms:
         # print(result)
         return result
 
-    def save_generated_document(self, user_id, serializer, validated_content):
-        GeneratedLegalDocument.objects.create(
-            user_id=user_id,
-            document_type=serializer.validated_data['document_type'],
-            title=serializer.validated_data['title'],
-            date=serializer.validated_data['date'],
-            recipients=serializer.validated_data['recipients'],
-            description=serializer.validated_data['description'],
-            agreements=serializer.validated_data['agreements'],
-            rights=serializer.validated_data.get('rights', []),
-            resolution=serializer.validated_data.get('resolution', ''),
-            payment=serializer.validated_data.get('payment', ''),
-            closing=serializer.validated_data['closing'],
-            generated_content=validated_content
-        )
-        GeneratedLegalDocument.save()
-
     def generate_document_number(self, document_type):
         today = datetime.now()
         # Get document type prefix
@@ -221,9 +204,6 @@ Agreement Terms:
                 except Exception as e:
                     print(f"Error creating envelope: {str(e)}")
                     return Response({'error': 'Failed to create envelope'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-                # Save the generated document to the database
-                self.save_generated_document(account_id, serializer, validated_content)
 
                 return Response({
                     'title': serializer.validated_data['title'],
