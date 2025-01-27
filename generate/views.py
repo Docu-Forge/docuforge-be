@@ -10,6 +10,8 @@ from docusign_esign import ApiClient, EnvelopesApi, EnvelopeDefinition, Document
 from .serializers import LegalDocumentSerializer, GenerateTextSerializer
 from .models import GeneratedLegalDocument
 from django.conf import settings
+from datetime import datetime
+from dashboard.models import DocumentRequest
 
 env = os.environ
 
@@ -22,7 +24,7 @@ class GenerateLegalDocumentView(APIView):
         return "\n".join([f"- {item}" for item in items])
 
     def create_prompt(self, data):
-        prompt = f"""Generate a legal document based on the following data:
+        prompt = f"""Generate a {data['document_type']} based on the following data:
 
 Title: {data['title']}
 Date: {data['date']}
@@ -120,6 +122,54 @@ Agreement Terms:
         # print(result)
         return result
 
+    def save_generated_document(self, user_id, serializer, validated_content):
+        GeneratedLegalDocument.objects.create(
+            user_id=user_id,
+            document_type=serializer.validated_data['document_type'],
+            title=serializer.validated_data['title'],
+            date=serializer.validated_data['date'],
+            recipients=serializer.validated_data['recipients'],
+            description=serializer.validated_data['description'],
+            agreements=serializer.validated_data['agreements'],
+            rights=serializer.validated_data.get('rights', []),
+            resolution=serializer.validated_data.get('resolution', ''),
+            payment=serializer.validated_data.get('payment', ''),
+            closing=serializer.validated_data['closing'],
+            generated_content=validated_content
+        )
+        GeneratedLegalDocument.save()
+
+    def generate_document_number(self, document_type):
+        today = datetime.now()
+        # Get document type prefix
+        type_prefix = ''.join(word[0] for word in document_type.split())
+        # Format: DOC/CL/YYYYMMDD/001 (CL for Cooperation Letter, etc)
+        date_str = today.strftime('%Y%m%d')
+        
+        # Get latest document number for today
+        latest_doc = Document.objects.filter(
+            document_number__contains=f"DOC/{type_prefix}/{date_str}"
+        ).order_by('-document_number').first()
+        
+        if latest_doc:
+            last_num = int(latest_doc.document_number[-3:])
+            new_num = f"{last_num + 1:03d}"
+        else:
+            new_num = "001"
+            
+        return f"DOC/{type_prefix}/{date_str}/{new_num}"
+
+    def save_document(self, serializer, envelope_id):
+        doc_number = self.generate_document_number(serializer.validated_data['document_type'])
+        DocumentRequest.objects.create(
+            document_title=serializer.validated_data['title'],
+            document_type=serializer.validated_data['document_type'],
+            comments_notes=serializer.validated_data['description'],
+            expired_date=serializer.validated_data['closing'],
+            document_number=doc_number,
+            envelope_id=envelope_id
+        )
+
     def post(self, request):
         try:
             # Extract token from Authorization header
@@ -133,7 +183,6 @@ Agreement Terms:
             # Retrieve user information using the token
             try:
                 user_info = self.fetch_user_info(token)
-                user_id = user_info['sub']
                 accounts = user_info['accounts']
                 for acc in accounts:
                     if acc['is_default']:
@@ -167,13 +216,14 @@ Agreement Terms:
                 # Create and send envelope
                 try:
                     result = self.create_and_send_envelope(api_client, account_id, validated_content, serializer.validated_data['recipients'])
-                    print(result)
+                    # Save document to dashboard
+                    self.save_document(serializer, result.envelope_id)
                 except Exception as e:
                     print(f"Error creating envelope: {str(e)}")
                     return Response({'error': 'Failed to create envelope'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
                 # Save the generated document to the database
-                # self.save_generated_document(user_id, serializer, validated_content)
+                self.save_generated_document(account_id, serializer, validated_content)
 
                 return Response({
                     'title': serializer.validated_data['title'],
