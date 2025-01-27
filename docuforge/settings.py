@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'openai',
     'rest_framework',
     'rest_framework.authtoken',
+    'docusign_esign'
 ]
 
 MIDDLEWARE = [

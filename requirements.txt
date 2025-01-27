@@ -10,5 +10,7 @@ python-dotenv==1.0.1
 sqlparse==0.5.1
 tzdata==2024.1
 django-cors-headers
+openai
+docusign-esign
 docusign-esign
 openai
