@@ -1,9 +1,9 @@
 from django.urls import path
-from .views import DocumentRequestList, AddDummyDocumentRequest
+from .views import DocumentList, AddDocument
 
 app_name = 'dashboard'
 
 urlpatterns = [
-    path('get-document-requests', DocumentRequestList.as_view(), name='document_request_list'),
-    path('add-dummy-document-request', AddDummyDocumentRequest.as_view(), name='add_dummy_document_request'),
+    path('get-documents', DocumentList.as_view(), name='get_documents'),
+    path('add-document', AddDocument.as_view(), name='add_document'),
 ]
